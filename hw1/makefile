@@ -1,7 +1,2 @@
-P=main
-OBJECTS=
-CFLAGS = -Wall -Wextra -Wpedantic -std=c11
-LDLIBS=
-CC=gcc
-
-$(P): $(OBJECTS)
+main:
+	gcc main.c -Wall -Wextra -Wpedantic -std=c11 -o app

@@ -1,9 +1,13 @@
 #include <stdio.h>
-#include "struct.h"
+#include <stdlib.h>
+#include <memory.h>
+#include "local-file-header.h"
 
 #define ZIP_SIGNATURE 0x04034b50
 #define MESSAGE_IS_ZIP "is zip"
 #define MESSAGE_IS_NOT_ZIP "is not zip"
+#define INIT_SIZE 4
+
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -12,30 +16,53 @@ int main(int argc, char *argv[]) {
     }
 
     FILE *fp;
-    LocalFileHeader zipHeader;
-    int zipHeaderSize = sizeof(LocalFileHeader);
-    int isZip = 0;
+    char **filenames;
+    LocalFileHeader zip_header;
 
-    fp = fopen(argv[1], "rb");
+    int init_size = INIT_SIZE;
+    int counter = 0;
+
+    int header_size = sizeof(LocalFileHeader);
+    char *filename = argv[1];
+
+    fp = fopen(filename, "rb");
     if (!fp) {
         printf("File not found\n");
         return 0;
     }
 
+
     while (feof(fp) == 0) {
-        fread(&zipHeader, zipHeaderSize, 1, fp);
-        if (zipHeader.signature == ZIP_SIGNATURE) {
-            isZip = 1;
-            break;
+        fread(&zip_header, header_size, 1, fp);
+        if (zip_header.signature == ZIP_SIGNATURE) {
+            if (counter == 0) {
+                filenames = malloc(sizeof(char *) * init_size);
+            } else if (counter > init_size) {
+                init_size += INIT_SIZE;
+                filenames = realloc(filenames, sizeof(char *) * init_size);
+            }
+
+            filenames[counter] = malloc(zip_header.filenameLength * sizeof(char));
+            memcpy(filenames[counter], &zip_header.filename, zip_header.filenameLength);
+
+            counter++;
         }
     }
 
     printf(
-            "Filename \"%s\" %s\n",
-            argv[1],
-            isZip ? MESSAGE_IS_ZIP : MESSAGE_IS_NOT_ZIP
+            "\nFile \"%s\" %s\n\nContains files:\n",
+            filename,
+            counter ? MESSAGE_IS_ZIP : MESSAGE_IS_NOT_ZIP
     );
 
+    for (int i = 0; i < counter; i++) {
+        printf("\t%s\n", filenames[i]);
+        free(filenames[i]);
+    }
+
+    free(filenames);
     fclose(fp);
+
     return 0;
 }
+
