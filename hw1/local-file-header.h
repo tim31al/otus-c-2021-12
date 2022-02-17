@@ -1,5 +1,6 @@
 #include <inttypes.h>
 
+#pragma pack(push, 1)
 typedef struct
 {
     // Обязательная сигнатура, равна 0x04034b50
@@ -29,3 +30,4 @@ typedef struct
     // Дополнительные данные (размером extraFieldLength)
     uint8_t *extraField;
 } LocalFileHeader;
+#pragma pack(pop)

@@ -30,10 +30,10 @@ int main(int argc, char *argv[]) {
         printf("File not found\n");
         return 0;
     }
-
-
+    
     while (feof(fp) == 0) {
         fread(&zip_header, header_size, 1, fp);
+
         if (zip_header.signature == ZIP_SIGNATURE) {
             if (counter == 0) {
                 filenames = malloc(sizeof(char *) * init_size);
@@ -49,11 +49,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    fclose(fp);
+
     printf(
-            "\nFile \"%s\" %s\n\nContains files:\n",
+            "File \"%s\" %s\n",
             filename,
             counter ? MESSAGE_IS_ZIP : MESSAGE_IS_NOT_ZIP
     );
+
+    if (!counter) {
+        return 0;
+    }
+
+
+    printf("Contains files:\n");
 
     for (int i = 0; i < counter; i++) {
         printf("\t%s\n", filenames[i]);
@@ -61,7 +70,6 @@ int main(int argc, char *argv[]) {
     }
 
     free(filenames);
-    fclose(fp);
 
     return 0;
 }
