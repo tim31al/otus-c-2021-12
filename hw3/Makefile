@@ -13,4 +13,4 @@ hash.o: hash_table.c
 	gcc -c hash_table.c -o hash_table.o
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o *.gch $(TARGET)

@@ -28,7 +28,9 @@ int main(int argc, char* argv[]) {
   char word[WORD_SIZE];
 
   int word_index = 0;
-  bool is_word_added = false;
+  bool is_set_word = false;
+
+  ht_entry* entry;
 
   if (!(fp = fopen(filename, "r"))) {
     printf("Невозможно открыть файл \'%s\'\n", filename);
@@ -44,17 +46,17 @@ int main(int argc, char* argv[]) {
   do {
     ch = fgetc(fp);
 
-    // если не знак препинания, добавить запись в таблицу
+    // если знак препинания
     if (!is_alnum(&ch)) {
 
-      // если слово не добавлено в таблицу
-      if (!is_word_added) {
+      // если слово не добавлено в таблицу или счетчик не увеличен
+      // для проверки нескольких пробелов и т.п.
+      if (!is_set_word) {
         word[word_index] = '\0';
 
-        void* value = ht_get(words, word);
-        // если есть в таблице, увеличить счетчик
-        if (value != NULL) {
-          (*(int*) value)++;
+        entry = ht_get(words, word);
+        if (entry != NULL) {
+          ht_entry_increment(entry);
         } else {
           // добавить в таблицу
           if (ht_set(words, word, NULL) == NULL) {
@@ -63,13 +65,16 @@ int main(int argc, char* argv[]) {
         }
 
         word_index = 0;
-        is_word_added = true;
+        is_set_word = true;
       }
-    } else { // читать символы дальше
-      word[word_index] = ch;
-      word_index++;
-      is_word_added = false;
+
+      continue;
     }
+
+
+    word[word_index] = ch;
+    word_index++;
+    is_set_word = false;
 
   } while(!(feof(fp)));
 

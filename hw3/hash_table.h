@@ -3,6 +3,13 @@
 
 // Таблица
 typedef struct ht ht;
+// запись в таблице
+typedef struct ht_entry ht_entry;
+
+struct ht_entry {
+    const char* key;  // ключ - NULL, если этот слот пуст
+    int* value;
+};
 
 
 // Создание таблицы
@@ -12,11 +19,14 @@ ht* ht_create(void);
 void ht_destroy(ht* table);
 
 // Найти элемент и вернуть значение
-void* ht_get(ht* table, const char* key);
+ht_entry* ht_get(ht* table, const char* key);
+
+// Инкремент счетчика
+void ht_entry_increment(ht_entry* entry);
 
 // Установить элемент с заданным ключом в значение (если NULL, то значение 1).
-// Если ключ еще не присутствует в таблице, ключ копируется
-// во вновь выделенную память. Возвращает адрес скопированного ключа или NULL, если не хватает памяти.
+// Если ключ еще не присутствует в таблице, ключ копируется во вновь выделенную память.
+// Возвращает адрес скопированного ключа или NULL, если не хватает памяти.
 const char* ht_set(ht* table, const char* key, int* value);
 
 // Показать таблицу

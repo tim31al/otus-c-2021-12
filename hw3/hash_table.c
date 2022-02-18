@@ -11,7 +11,6 @@
 #define FNV_PRIME 1099511628211UL
 
 
-typedef struct ht_entry ht_entry;
 typedef struct hti hti;
 
 
@@ -20,13 +19,6 @@ struct ht {
     ht_entry* entries;  // записи
     size_t capacity;    // размер массива записей
     size_t length;      // количество элементов
-};
-
-
-// Запись хеш-таблицы (слот может быть заполнен или пуст).
-struct ht_entry {
-    const char* key;  // ключ - NULL, если этот слот пуст
-    int* value;
 };
 
 // Итератор
@@ -85,13 +77,14 @@ static uint64_t _hash_key(const char* key) {
     return hash;
 }
 
-void* ht_get(ht* table, const char* key) {
+ht_entry* ht_get(ht* table, const char* key) {
     uint64_t hash = _hash_key(key);
     size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
 
     while (table->entries[index].key != NULL) {
         if (strcmp(key, table->entries[index].key) == 0) {
-            return table->entries[index].value;
+            // return table->entries[index].value;
+            return &table->entries[index];
         }
         // Ключа нет, перейти к следующему (линейное зондирование).
         index++;
@@ -102,6 +95,11 @@ void* ht_get(ht* table, const char* key) {
     return NULL;
 }
 
+
+// Инкремент счетчика
+void ht_entry_increment(ht_entry* entry) {
+  (*(int*) entry->value)++;
+}
 
 // Внутренняя функция для установки записи (без расширения таблицы).
 static const char* _ht_set_entry(ht_entry* entries, size_t capacity,
