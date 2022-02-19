@@ -4,7 +4,7 @@
 typedef struct
 {
     // Обязательная сигнатура, равна 0x04034b50
-    uint32_t signature;
+    // uint32_t signature;
     // Минимальная версия для распаковки
     uint16_t versionToExtract;
     // Битовый флаг
@@ -26,8 +26,8 @@ typedef struct
     // Длина поля с дополнительными данными
     uint16_t extraFieldLength;
     // Название файла (размером filenameLength)
-    uint8_t *filename;
-    // Дополнительные данные (размером extraFieldLength)
-    uint8_t *extraField;
+    // uint8_t *filename;
+    // // Дополнительные данные (размером extraFieldLength)
+    // uint8_t *extraField;
 } LocalFileHeader;
 #pragma pack(pop)
