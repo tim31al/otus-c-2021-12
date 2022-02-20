@@ -11,4 +11,4 @@ main.o: main.c
 		gcc -c main.c -o main.o
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o *.gch $(TARGET)

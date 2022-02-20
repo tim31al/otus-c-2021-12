@@ -4,9 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ZIP_SIGNATURE 0x04034b50
-#define CENTRAL_SIGNATURE 0x02014b50
-
 #define MESSAGE_IS_ZIP "zip архив"
 #define MESSAGE_IS_NOT_ZIP "не является zip архивом"
 #define INIT_SIZE 16
@@ -22,23 +19,20 @@ int main(int argc, char *argv[]) {
 
   LocalFileHeader l_header;
   CentralDirectoryFileHeader cd_header;
+
   uint16_t filenameLength = 0;
 
+  size_t init_size = INIT_SIZE;
+  size_t counter = 0;
+
+  size_t l_size = sizeof(LocalFileHeader);
+  size_t cd_size = sizeof(CentralDirectoryFileHeader);
+  size_t size;
   uint32_t signature;
-  uint16_t size;
 
-  int init_size = INIT_SIZE;
-  int counter = 0;
-  int d_counter = 0;
-
-  int l_size = sizeof(LocalFileHeader);
-  int cd_size = sizeof(CentralDirectoryFileHeader);
-
-  char *filename = argv[1];
-
-  fp = fopen(filename, "rb");
+  fp = fopen(argv[1], "rb");
   if (!fp) {
-    printf("Невозможно открыть файл\n");
+    printf("Невозможно открыть файл '%s'\n", argv[1]);
     return 0;
   }
 
@@ -47,16 +41,16 @@ int main(int argc, char *argv[]) {
     fread(&signature, sizeof(int), 1, fp);
 
     switch (signature) {
-      case CENTRAL_SIGNATURE:
-        fread(&cd_header, cd_size, 1, fp);
-        filenameLength = cd_header.filenameLength;
-        break;
-      case ZIP_SIGNATURE:
-        fread(&l_header, l_size, 1, fp);
-        filenameLength = l_header.filenameLength;
-        break;
-      default:
-        continue;
+    case CENTRAL_SIGNATURE:
+      fread(&cd_header, cd_size, 1, fp);
+      filenameLength = cd_header.filenameLength;
+      break;
+    case LOCAL_SIGNATURE:
+      fread(&l_header, l_size, 1, fp);
+      filenameLength = l_header.filenameLength;
+      break;
+    default:
+      continue;
     }
 
     if (filenameLength) {
@@ -78,65 +72,11 @@ int main(int argc, char *argv[]) {
       filenameLength = 0;
       counter++;
     }
-
-    /*
-    if (signature == CENTRAL_SIGNATURE) {
-
-      fread(&cd_header, cd_size, 1, fp);
-
-      if (cd_header.filenameLength) {
-        if (counter == 0) {
-          filenames = malloc(sizeof(char *) * init_size);
-        } else if (counter > init_size) {
-          // изменить размер массива
-          init_size += INIT_SIZE;
-          filenames = realloc(filenames, sizeof(char *) * init_size);
-        }
-
-        size = (cd_header.filenameLength + 1) * sizeof(char);
-        filenames[counter] = malloc(size);
-
-        fread(filenames[counter], size, 1, fp);
-        // завершить строку
-        filenames[counter][size - 1] = '\0';
-
-        counter++;
-      }
-      continue;
-    }
-
-    if (signature == ZIP_SIGNATURE) {
-      // считать LocalFileHeader без имени файла
-      // fseek(fp, sizeof(int) * (-1), SEEK_CUR);
-      fread(&l_header, l_size, 1, fp);
-
-      if (l_header.filenameLength) {
-        if (counter == 0) {
-          // выделить начальную память для массива
-          filenames = malloc(sizeof(char *) * init_size);
-        } else if (counter > init_size) {
-          // изменить размер массива
-          init_size += INIT_SIZE;
-          filenames = realloc(filenames, sizeof(char *) * init_size);
-        }
-
-        size = (l_header.filenameLength + 1) * sizeof(char);
-        filenames[counter] = malloc(size);
-
-        // считать название файла
-        fread(filenames[counter], size, 1, fp);
-        // завершить строку
-        filenames[counter][size - 1] = '\0';
-
-        counter++;
-      }
-    }
-    */
   };
 
   fclose(fp);
 
-  printf("Файл \"%s\" %s\n", filename,
+  printf("Файл \"%s\" %s\n", argv[1],
          counter ? MESSAGE_IS_ZIP : MESSAGE_IS_NOT_ZIP);
 
   if (!counter) {
@@ -145,14 +85,12 @@ int main(int argc, char *argv[]) {
 
   printf("Содержит файлы:\n");
 
-  for (int i = 0; i < counter; i++) {
+  for (size_t i = 0; i < counter; i++) {
     printf("\t%s\n", filenames[i]);
     free(filenames[i]);
   }
 
-  printf("\nВсего файлов: %d\n", counter);
-
-  printf("\nDcount: %d\n", d_counter);
+  printf("\nВсего файлов: %lu\n", counter);
 
   free(filenames);
 
