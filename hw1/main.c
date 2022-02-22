@@ -8,9 +8,9 @@
 #define MESSAGE_ARCH_EMPTY "Архив пуст"
 #define FILENAME_SIZE 80
 
-static bool find_end_central_directory(FILE *, EndOfCentralDirectoryRecord *);
-static bool find_start_arch(FILE *, EndOfCentralDirectoryRecord *);
-static int exit_app(FILE *, char *);
+static bool findEndOfCentralDirectory(FILE *, EndOfCentralDirectoryRecord *);
+static bool findCentralDirectoryOffseth(FILE *, EndOfCentralDirectoryRecord *);
+static int exitApp(FILE *, char *);
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -22,30 +22,31 @@ int main(int argc, char *argv[]) {
 
   CentralDirectoryFileHeader cd_header;
   EndOfCentralDirectoryRecord eocd;
-
-  size_t counter = 0;
-  size_t cd_size = sizeof(CentralDirectoryFileHeader);
+  size_t cd_size;
 
   char *filename = NULL;
+  uint16_t counter = 0;
 
   fp = fopen(argv[1], "rb");
   if (!fp) {
     printf("Невозможно открыть файл '%s'\n", argv[1]);
-    return 0;
+    return 1;
   }
 
   // Найти EndOfCentralDirectoryRecord
-  if (!find_end_central_directory(fp, &eocd)) {
-    return exit_app(fp, MESSAGE_IS_NOT_ZIP);
+  if (!findEndOfCentralDirectory(fp, &eocd)) {
+    return exitApp(fp, MESSAGE_IS_NOT_ZIP);
   }
 
   // найти начало архива
-  if (!find_start_arch(fp, &eocd)) {
-    return exit_app(fp, MESSAGE_ARCH_EMPTY);
+  if (!findCentralDirectoryOffseth(fp, &eocd)) {
+    return exitApp(fp, MESSAGE_ARCH_EMPTY);
   }
 
-  filename = malloc(FILENAME_SIZE);
   printf("%s\n", MESSAGE_IS_ZIP);
+
+  filename = malloc(FILENAME_SIZE);
+  cd_size = sizeof(CentralDirectoryFileHeader);
 
   while (!(feof(fp))) {
     fread(&cd_header, cd_size, 1, fp);
@@ -58,6 +59,7 @@ int main(int argc, char *argv[]) {
       fread(filename, cd_header.filenameLength, 1, fp);
       filename[cd_header.filenameLength] = '\0';
       printf("\t%s\n", filename);
+      
       counter++;
 
       fseek(fp, cd_header.fileCommentLength + cd_header.extraFieldLength,
@@ -66,25 +68,27 @@ int main(int argc, char *argv[]) {
   }
 
   if (counter != eocd.totalCentralDirectoryRecord) {
-    printf("Ошибка подсчета файлов. Найдено: %lu\n", counter);
+    printf("Ошибка подсчета файлов.\nВсего: %d\nНайдено: %d\n",
+           eocd.totalCentralDirectoryRecord, counter);
   } else {
     printf("Всего файлов: %d\n", eocd.totalCentralDirectoryRecord);
   }
 
   fclose(fp);
+  free(filename);
 
   return 0;
 }
 
 // Выход из программы
-int exit_app(FILE *fp, char *message) {
+int exitApp(FILE *fp, char *message) {
   fclose(fp);
   printf("%s\n", message);
   return 0;
 }
 
 // найти EndOfCentralDirectoryRecord
-bool find_end_central_directory(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
+bool findEndOfCentralDirectory(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
   uint32_t signature;
   bool is_find = false;
 
@@ -114,7 +118,7 @@ bool find_end_central_directory(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
 }
 
 // найти начало архива
-bool find_start_arch(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
+bool findCentralDirectoryOffseth(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
   uint32_t signature;
   bool is_find = false;
 
