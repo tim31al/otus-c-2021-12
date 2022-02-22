@@ -6,7 +6,7 @@
 
 typedef struct LocalFileHeader LocalFileHeader;
 typedef struct CentralDirectoryFileHeader CentralDirectoryFileHeader;
-typedef struct EOCD EOCD;
+typedef struct EndOfCentralDirectoryRecord EndOfCentralDirectoryRecord;
 
 // Располагаются в начале архива
 #pragma pack(push, 1)
@@ -33,10 +33,10 @@ struct LocalFileHeader {
   uint16_t filenameLength;
   // Длина поля с дополнительными данными
   uint16_t extraFieldLength;
-  // Название файла (размером filenameLength)
-  uint8_t *filename;
-  // // Дополнительные данные (размером extraFieldLength)
-  uint8_t *extraField;
+  // // Название файла (размером filenameLength)
+  // uint8_t *filename;
+  // // // Дополнительные данные (размером extraFieldLength)
+  // uint8_t *extraField;
 };
 #pragma pack(pop)
 
@@ -77,20 +77,20 @@ struct CentralDirectoryFileHeader {
   uint32_t externalFileAttributes;
   // Смещение до структуры LocalFileHeader
   uint32_t localFileHeaderOffset;
-  // Имя файла (длиной filenameLength)
-  uint8_t *filename;
-  // // Дополнительные данные (длиной extraFieldLength)
-  uint8_t *extraField;
-  // // Комментарий к файла (длиной fileCommentLength)
-  uint8_t *fileComment;
+  // // Имя файла (длиной filenameLength)
+  // uint8_t *filename;
+  // // // Дополнительные данные (длиной extraFieldLength)
+  // uint8_t *extraField;
+  // // // Комментарий к файла (длиной fileCommentLength)
+  // uint8_t *fileComment;
 };
 #pragma pack(pop)
 
 // Конец главного каталога
 #pragma pack(push, 1)
-struct EOCD {
+struct EndOfCentralDirectoryRecord {
   // // Обязательная сигнатура, равна 0x06054b50
-  uint32_t signature;
+  // uint32_t signature;
   // Номер диска
   uint16_t diskNumber;
   // Номер диска, где находится начало Central Directory
@@ -106,6 +106,6 @@ struct EOCD {
   // Длина комментария
   uint16_t commentLength;
   // Комментарий (длиной commentLength)
-  uint8_t *comment;
+  // uint8_t *comment;
 };
 #pragma pack(pop)

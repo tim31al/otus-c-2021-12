@@ -1,12 +1,16 @@
-// #include "local-file-header.h"
-#include "zip_struct.h"
-#include <memory.h>
+#include "zip-header.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define MESSAGE_IS_ZIP "zip архив"
-#define MESSAGE_IS_NOT_ZIP "не является zip архивом"
-#define INIT_SIZE 16
+#define MESSAGE_IS_NOT_ZIP "Не является zip архивом"
+#define MESSAGE_ARCH_EMPTY "Архив пуст"
+#define FILENAME_SIZE 80
+
+static bool find_end_central_directory(FILE *, EndOfCentralDirectoryRecord *);
+static bool find_start_arch(FILE *, EndOfCentralDirectoryRecord *);
+static int exit_app(FILE *, char *);
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -15,20 +19,14 @@ int main(int argc, char *argv[]) {
   }
 
   FILE *fp;
-  char **filenames;
 
-  LocalFileHeader l_header;
   CentralDirectoryFileHeader cd_header;
+  EndOfCentralDirectoryRecord eocd;
 
-  uint16_t filenameLength = 0;
-
-  size_t init_size = INIT_SIZE;
   size_t counter = 0;
-
-  size_t l_size = sizeof(LocalFileHeader);
   size_t cd_size = sizeof(CentralDirectoryFileHeader);
-  size_t size;
-  uint32_t signature;
+
+  char *filename = NULL;
 
   fp = fopen(argv[1], "rb");
   if (!fp) {
@@ -36,63 +34,104 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  while (feof(fp) == 0) {
-    // найти сигнатуру
-    fread(&signature, sizeof(int), 1, fp);
+  // Найти EndOfCentralDirectoryRecord
+  if (!find_end_central_directory(fp, &eocd)) {
+    return exit_app(fp, MESSAGE_IS_NOT_ZIP);
+  }
 
-    switch (signature) {
-    case CENTRAL_SIGNATURE:
-      fread(&cd_header, cd_size, 1, fp);
-      filenameLength = cd_header.filenameLength;
-      break;
-    case LOCAL_SIGNATURE:
-      fread(&l_header, l_size, 1, fp);
-      filenameLength = l_header.filenameLength;
-      break;
-    default:
-      continue;
-    }
+  // найти начало архива
+  if (!find_start_arch(fp, &eocd)) {
+    return exit_app(fp, MESSAGE_ARCH_EMPTY);
+  }
 
-    if (filenameLength) {
-      if (counter == 0) {
-        filenames = malloc(sizeof(char *) * init_size);
-      } else if (counter > init_size) {
-        // изменить размер массива
-        init_size += INIT_SIZE;
-        filenames = realloc(filenames, sizeof(char *) * init_size);
+  filename = malloc(FILENAME_SIZE);
+  printf("%s\n", MESSAGE_IS_ZIP);
+
+  while (!(feof(fp))) {
+    fread(&cd_header, cd_size, 1, fp);
+
+    if (cd_header.signature == CENTRAL_SIGNATURE) {
+      if (cd_header.filenameLength > FILENAME_SIZE) {
+        filename = malloc(cd_header.filenameLength + 1);
       }
 
-      size = (filenameLength + 1) * sizeof(char);
-      filenames[counter] = malloc(size);
-
-      fread(filenames[counter], size, 1, fp);
-      // завершить строку
-      filenames[counter][size - 1] = '\0';
-
-      filenameLength = 0;
+      fread(filename, cd_header.filenameLength, 1, fp);
+      filename[cd_header.filenameLength] = '\0';
+      printf("\t%s\n", filename);
       counter++;
+
+      fseek(fp, cd_header.fileCommentLength + cd_header.extraFieldLength,
+            SEEK_CUR);
     }
-  };
+  }
+
+  if (counter != eocd.totalCentralDirectoryRecord) {
+    printf("Ошибка подсчета файлов. Найдено: %lu\n", counter);
+  } else {
+    printf("Всего файлов: %d\n", eocd.totalCentralDirectoryRecord);
+  }
 
   fclose(fp);
 
-  printf("Файл \"%s\" %s\n", argv[1],
-         counter ? MESSAGE_IS_ZIP : MESSAGE_IS_NOT_ZIP);
-
-  if (!counter) {
-    return 0;
-  }
-
-  printf("Содержит файлы:\n");
-
-  for (size_t i = 0; i < counter; i++) {
-    printf("\t%s\n", filenames[i]);
-    free(filenames[i]);
-  }
-
-  printf("\nВсего файлов: %lu\n", counter);
-
-  free(filenames);
-
   return 0;
+}
+
+// Выход из программы
+int exit_app(FILE *fp, char *message) {
+  fclose(fp);
+  printf("%s\n", message);
+  return 0;
+}
+
+// найти EndOfCentralDirectoryRecord
+bool find_end_central_directory(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
+  uint32_t signature;
+  bool is_find = false;
+
+  fseek(fp, 0, SEEK_END);
+  uint32_t size = ftell(fp);
+  uint32_t counter = 0;
+
+  fseek(fp, sizeof(eocd) - 4, SEEK_END);
+
+  while (counter <= size) {
+    // Найти сигнатуру eocd. (читать 4 байта)
+    fread(&signature, 4, 1, fp);
+
+    if (signature == END_SIGNATURE) {
+      fread(eocd, sizeof(eocd), 1, fp);
+      is_find = true;
+
+      break;
+    }
+
+    // передвинуть указать на 1 байт назад
+    fseek(fp, -5, SEEK_CUR);
+    counter++;
+  }
+
+  return is_find;
+}
+
+// найти начало архива
+bool find_start_arch(FILE *fp, EndOfCentralDirectoryRecord *eocd) {
+  uint32_t signature;
+  bool is_find = false;
+
+  // переместить указатель на возможное (не учтена картинка) начало записей
+  // Central Directory
+  fseek(fp, eocd->centralDirectoryOffset, SEEK_SET);
+
+  while (!(feof(fp))) {
+    fread(&signature, 4, 1, fp);
+    if (signature == CENTRAL_SIGNATURE) {
+      fseek(fp, -4, SEEK_CUR);
+      is_find = true;
+      break;
+    }
+
+    fseek(fp, -3, SEEK_CUR);
+  }
+
+  return is_find;
 }
