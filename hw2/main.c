@@ -4,24 +4,29 @@
 #include <string.h>
 
 #include "common.h"
-// #include "koi8.h"
+
 
 #define ERROR_USAGE 1
 #define ERROR_OPEN_FILE 2
 
 static const char *encodings[] = {"cp-1251", "koi8-r", "iso-8859-5"};
+static const bool (*functions[])(uint8_t *in, uint32_t *out) = {
+    cp1251_to_unicode, koi8_r_to_unicode, iso_8859_5_to_unicode
+  };
 
 static void showUsage();
-static bool in_encodings(const char *str);
+static int in_encodings(const char *str);
 
 static bool unicode_to_utf(uint32_t *in, UtfBytes *utfBytes);
 
-
 int main(int argc, char **argv) {
-  if (argc != 4 || !in_encodings(argv[2])) {
+  int funct_index;
+
+  if (argc != 4 || (funct_index = in_encodings(argv[2])) == -1) {
     showUsage(argv[0]);
     return ERROR_USAGE;
   }
+
 
   FILE *fp, *fout;
 
@@ -29,7 +34,7 @@ int main(int argc, char **argv) {
   uint32_t out;
 
   // указатель на функцию для преобразования в unicode
-  bool (*byte_to_unicode) (uint8_t *in, uint32_t *out);
+  bool (*byte_to_unicode)(uint8_t * in, uint32_t * out);
   // структура с unicode байтами
   UtfBytes utfBytes;
 
@@ -45,30 +50,17 @@ int main(int argc, char **argv) {
     return ERROR_OPEN_FILE;
   }
 
+  byte_to_unicode = functions[funct_index];
 
-  if (!strcmp(argv[2], encodings[0])) {
-    byte_to_unicode = cp1251_to_unicode;
-  } else if (!strcmp(argv[2], encodings[1])) {
-    byte_to_unicode = koi8_r_to_unicode;
-  } else if (!strcmp(argv[2], encodings[2])) {
-    byte_to_unicode = iso_8859_5_to_unicode;
-  } else {
-    printf("Аргумент '%s' не опознан\n", argv[2]);
-    return 0;
-  }
-
-
-  while (!(feof(fp))) {
-    ch = getc(fp);
+  while ((ch = getc(fp)) != EOF) {
     if (feof(fp)) {
       break;
     }
 
     if (!byte_to_unicode(&ch, &out)) {
-          printf("Выход за границы массива unicode\n");
-          break;
+      printf("Выход за границы массива unicode\n");
+      break;
     }
-
 
     if (!unicode_to_utf(&out, &utfBytes)) {
       printf("Ошибка\n");
@@ -92,19 +84,18 @@ void showUsage(char *appName) {
          appName, encodings[0], encodings[1], encodings[2]);
 }
 
-bool in_encodings(const char *str) {
-  bool in_array = false;
+int in_encodings(const char *str) {
+  int index = -1;
 
   for (int i = 0; i < sizeof(encodings) / sizeof(char *); i++) {
     if (!strcmp(str, encodings[i])) {
-      in_array = true;
+      index = i;
       break;
     }
   }
 
-  return in_array;
+  return index;
 }
-
 
 bool unicode_to_utf(uint32_t *in, UtfBytes *utfBytes) {
 
